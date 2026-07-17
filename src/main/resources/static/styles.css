@@ -1,0 +1,778 @@
+:root {
+    --blue: #4b79a1;
+    --blue-dark: #3a5f7a;
+    --navy: #283e51;
+    --green: #3b8c58;
+    --green-dark: #2f6f46;
+    --red: #dc2626;
+    --red-dark: #b91c1c;
+    --background: #f2f5f9;
+    --surface: #ffffff;
+    --text: #333333;
+    --muted: #6b7280;
+    --border: #d1d5db;
+    --shadow: 0 8px 25px rgba(0, 0, 0, 0.10);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background: var(--background);
+    color: var(--text);
+}
+
+a {
+    color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+/* =========================================================
+   HOMEPAGE
+   ========================================================= */
+
+body:has(.main-container) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--blue), var(--navy));
+}
+
+.main-container {
+    width: min(600px, 100%);
+    padding: 40px 50px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.97);
+    color: var(--text);
+    text-align: center;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25);
+}
+
+.main-title h1 {
+    margin: 0 0 20px;
+    color: var(--navy);
+    font-size: 2rem;
+}
+
+.main-content p {
+    margin: 0 0 30px;
+    color: #555;
+}
+
+.button-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 25px;
+    flex-wrap: wrap;
+}
+
+.main-container .button-group {
+    justify-content: center;
+    margin-top: 0;
+}
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.button.primary {
+    background: var(--blue);
+    color: white;
+}
+
+.button.primary:hover {
+    background: var(--blue-dark);
+}
+
+.button.secondary {
+    background: #e9f5ee;
+    color: var(--green-dark);
+    border: 1px solid var(--green);
+}
+
+.button.secondary:hover {
+    background: #d4ebdd;
+}
+
+/* =========================================================
+   LOGIN
+   ========================================================= */
+
+body:has(.login-button) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--blue), var(--navy));
+}
+
+body:has(.login-button) > .container {
+    width: min(380px, 100%);
+    margin: 0;
+    padding: 40px 50px;
+    border-radius: 12px;
+    background: white;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.20);
+}
+
+body:has(.login-button) .container h1 {
+    margin: 0 0 25px;
+}
+
+.error-message,
+.error-banner {
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    background: #ffd6d6;
+    color: #a30000;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.login-button,
+.create-employee-button {
+    display: inline-block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--blue);
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.login-button:hover,
+.create-employee-button:hover {
+    background: var(--blue-dark);
+}
+
+/* =========================================================
+   GENERELT LAYOUT
+   ========================================================= */
+
+.container {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 25px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--blue), var(--navy));
+    color: white;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-info span {
+    font-weight: 500;
+}
+
+.logout-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.60);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.12);
+    color: white;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.logout-button:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.control-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin: 25px 0;
+}
+
+.breadcrumb {
+    margin: 25px 0;
+}
+
+.breadcrumb a {
+    color: var(--blue);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.breadcrumb a:hover {
+    color: var(--blue-dark);
+}
+
+/* =========================================================
+   KNAPPER
+   ========================================================= */
+
+.back-button,
+.create-project-button,
+.create-subTask-button,
+.all-employees-button,
+.edit-button,
+.delete-button,
+.view-subproject-button,
+.view-project-members,
+.create-task-button,
+.subtask-button,
+.note-button,
+.btn,
+.btn-secondary,
+.cancel-button,
+.submit-button,
+.save-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.back-button {
+    padding: 10px 16px;
+    border: 1px solid var(--blue);
+    background: var(--blue);
+    color: white;
+}
+
+.back-button:hover {
+    background: var(--blue-dark);
+    border-color: var(--blue-dark);
+}
+
+.create-project-button,
+.create-subTask-button,
+.submit-button,
+.save-button,
+.btn-primary {
+    padding: 10px 18px;
+    border: none;
+    background: var(--blue);
+    color: white;
+}
+
+.create-project-button:hover,
+.create-subTask-button:hover,
+.submit-button:hover,
+.save-button:hover,
+.btn-primary:hover {
+    background: var(--blue-dark);
+}
+
+.all-employees-button,
+.view-project-members {
+    padding: 8px 16px;
+    border: 1px solid var(--blue);
+    background: white;
+    color: var(--blue);
+}
+
+.all-employees-button:hover,
+.view-project-members:hover {
+    background: #e6edf7;
+}
+
+.edit-button {
+    padding: 7px 12px;
+    border: none;
+    background: var(--blue);
+    color: white;
+    font-size: 0.85rem;
+}
+
+.edit-button:hover {
+    background: var(--blue-dark);
+}
+
+.delete-button,
+.btn-danger {
+    padding: 7px 12px;
+    border: none;
+    background: var(--red);
+    color: white;
+    font-size: 0.85rem;
+}
+
+.delete-button:hover,
+.btn-danger:hover {
+    background: var(--red-dark);
+}
+
+.view-subproject-button,
+.create-task-button,
+.subtask-button {
+    padding: 7px 12px;
+    border: none;
+    background: var(--green);
+    color: white;
+    font-size: 0.85rem;
+}
+
+.view-subproject-button:hover,
+.create-task-button:hover,
+.subtask-button:hover {
+    background: var(--green-dark);
+}
+
+.note-button {
+    padding: 7px 12px;
+    border: 1px solid var(--blue);
+    background: white;
+    color: var(--blue);
+    font-size: 0.8rem;
+}
+
+.note-button:hover {
+    background: #e6edf7;
+}
+
+.btn-secondary,
+.cancel-button {
+    padding: 10px 18px;
+    border: none;
+    background: #e5e7eb;
+    color: #333;
+}
+
+.btn-secondary:hover,
+.cancel-button:hover {
+    background: #d5d6d8;
+}
+
+/* =========================================================
+   FORMULARER
+   ========================================================= */
+
+body:has(> h1 + form) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px 30px;
+}
+
+body:has(> h1 + form) > h1 {
+    margin: 0 0 20px;
+    color: var(--navy);
+    text-align: center;
+}
+
+body:has(> h1 + form) > form {
+    width: min(480px, 100%);
+    padding: 30px 35px;
+    border-radius: 12px;
+    background: white;
+    box-shadow: var(--shadow);
+}
+
+.form-container,
+.form-card,
+.note-form {
+    width: min(650px, calc(100% - 40px));
+    margin: 30px auto;
+    padding: 30px 35px;
+    border-radius: 12px;
+    background: white;
+    box-shadow: var(--shadow);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-bottom: 18px;
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    color: #444;
+    font-weight: 600;
+}
+
+input,
+textarea,
+select {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #f9fafb;
+    font-size: 0.95rem;
+    transition: 0.2s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--blue);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(75, 121, 161, 0.15);
+}
+
+textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+input[readonly] {
+    background: #e9ecef;
+    cursor: not-allowed;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.note-form h2 {
+    margin-top: 0;
+    color: var(--navy);
+}
+
+.note-form .save-button {
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px;
+    border: none;
+}
+
+/* =========================================================
+   TABELLER
+   ========================================================= */
+
+.project-table,
+.subproject-table,
+.task-table,
+body:has(.title) table,
+.members-container table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow: hidden;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.project-table thead,
+.subproject-table thead,
+.task-table thead,
+body:has(.title) thead {
+    background: var(--blue);
+    color: white;
+}
+
+.project-table th,
+.project-table td,
+.subproject-table th,
+.subproject-table td,
+.task-table th,
+.task-table td,
+body:has(.title) th,
+body:has(.title) td,
+.members-container th,
+.members-container td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+.project-table tbody tr:hover,
+.subproject-table tbody tr:hover,
+.task-table tbody tr:hover,
+body:has(.title) tbody tr:hover {
+    background: #f5f7fb;
+}
+
+.project-table td[colspan],
+.subproject-table td[colspan],
+.task-table td[colspan],
+.empty-message {
+    padding: 30px;
+    color: var(--muted);
+    text-align: center;
+    font-style: italic;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.task-table select {
+    width: auto;
+    min-width: 105px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+}
+
+.text-muted {
+    color: var(--muted);
+}
+
+.note-display {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   VIEW ALL EMPLOYEES
+   ========================================================= */
+
+body:has(.title) {
+    padding: 40px 20px;
+}
+
+.title {
+    margin: 0 0 30px;
+    color: var(--navy);
+    text-align: center;
+    font-size: 2rem;
+}
+
+body:has(.title) table {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+body:has(.title) .back-button {
+    display: flex;
+    width: fit-content;
+    margin: 24px auto 0;
+}
+
+/* =========================================================
+   CREATE PROJECT - UDEN HEADER
+   ========================================================= */
+
+body:has(> h1 + .control-bar) {
+    padding: 40px 20px;
+}
+
+body:has(> h1 + .control-bar) > h1 {
+    margin: 0;
+    color: var(--navy);
+    text-align: center;
+}
+
+body:has(> h1 + .control-bar) > .control-bar {
+    max-width: 650px;
+    margin: 20px auto 0;
+}
+
+body:has(> h1 + .control-bar) > form {
+    max-width: 600px;
+    margin: 30px auto;
+    padding: 25px;
+    border-radius: 12px;
+    background: white;
+    box-shadow: var(--shadow);
+}
+
+body:has(> h1 + .control-bar) > form button[type="submit"] {
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 8px;
+    background: var(--blue);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+body:has(> h1 + .control-bar) > form button[type="submit"]:hover {
+    background: var(--blue-dark);
+}
+
+/* =========================================================
+   PROJECT MEMBERS
+   Flyt den gamle <style>-blok fra HTML ud; disse regler erstatter den.
+   ========================================================= */
+
+.members-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.members-container .header {
+    margin-bottom: 30px;
+}
+
+.members-container .section {
+    margin-bottom: 40px;
+}
+
+.members-container .section h2 {
+    margin-bottom: 20px;
+}
+
+.add-member-form {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 8px;
+    background: white;
+    box-shadow: var(--shadow);
+}
+
+.members-container .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+}
+
+.members-container form[style*="display:inline"] {
+    display: inline !important;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .action-buttons > * {
+        width: 100%;
+        text-align: center;
+    }
+
+    .project-table,
+    .subproject-table,
+    .task-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 700px) {
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .control-bar,
+    .form-actions,
+    .button-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .control-bar > *,
+    .form-actions > *,
+    .button-group > * {
+        width: 100%;
+        text-align: center;
+    }
+
+    .form-container,
+    .form-card,
+    .note-form {
+        width: calc(100% - 30px);
+        padding: 25px 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-container {
+        padding: 30px 20px;
+    }
+
+    body:has(.login-button) > .container {
+        padding: 30px 20px;
+    }
+
+    .container {
+        margin-top: 20px;
+        padding: 0 12px;
+    }
+
+    .header h1,
+    .main-title h1,
+    .title {
+        font-size: 1.55rem;
+    }
+}
