@@ -16,6 +16,25 @@ body {
     color: #283e51;
 }
 
+/* Tilbageknap */
+.back-button {
+    display: block;
+    width: fit-content;
+    margin: 24px auto 0;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: #4b79a1;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: 0.2s ease;
+}
+
+.back-button:hover {
+    background: #3a5f7a;
+}
+
 /* Wrapper omkring tabel (card-look) */
 table {
     width: 100%;
