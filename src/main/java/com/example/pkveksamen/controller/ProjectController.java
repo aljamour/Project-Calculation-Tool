@@ -3,6 +3,7 @@ package com.example.pkveksamen.controller;
 import com.example.pkveksamen.model.*;
 import com.example.pkveksamen.service.ProjectService;
 import com.example.pkveksamen.service.EmployeeService;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.ui.Model;
@@ -20,17 +21,6 @@ public class ProjectController {
         this.projectService = projectService;
         this.employeeService = employeeService;
     }
-
-    /* VI BRUGER DEN IKKE
-    // her laver vi metoderene på hvad de forskellig bruger skal kunne.
-    public boolean isManager(Employee employee){
-        return employee != null && employee.getRole() == EmployeeRole.PROJECT_MANAGER;
-    }
-
-    public boolean isTeamMember(Employee employee){
-        return employee != null && employee.getRole() == EmployeeRole.TEAM_MEMBER;
-    }
-    */
 
     @GetMapping("/employees/{employeeId}/{projectId}")
     public String showProjectMembers(@PathVariable int employeeId,
@@ -88,16 +78,31 @@ public class ProjectController {
     }
 
     @GetMapping("/list/{employeeId}")
-    public String showProjectsByEmployeeId(@PathVariable int employeeId, Model model) {
-        List<Project> projectList = projectService.showProjectsByEmployeeId(employeeId);
-        model.addAttribute("projectList", projectList);
-        model.addAttribute("currentEmployeeId", employeeId);
+    public String showProjectsByEmployeeId(@PathVariable int employeeId, HttpSession session, Model model) {
 
-        Employee employee = employeeService.getEmployeeById(employeeId);
+        Integer loggedInEmployeeId = (Integer) session.getAttribute("employeeId");
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        if (!loggedInEmployeeId.equals(employeeId)) {
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        List<Project> projectList = projectService.showProjectsByEmployeeId(loggedInEmployeeId);
+
+        model.addAttribute("projectList", projectList);
+        model.addAttribute("currentEmployeeId", loggedInEmployeeId);
+
+        Employee employee = employeeService.getEmployeeById(loggedInEmployeeId);
+
         if (employee != null) {
             model.addAttribute("username", employee.getUsername());
+
             model.addAttribute("employeeRole", employee.getRole());
         }
+
         return "project";
     }
 

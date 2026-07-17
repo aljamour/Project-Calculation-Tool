@@ -69,15 +69,20 @@ public class EmployeeController {
     @PostMapping("/validate-login")
     public String validateLogin(@RequestParam("username") String username,
                                 @RequestParam("password") String password,
+                                HttpSession session,
                                 Model model) {
-        Integer id = employeeService.validateLogin(username, password);
 
-        if (id != null && id > 0) {
-            return "redirect:/project/list/" + id;
-        } else {
-            model.addAttribute("error", "Brugernavn eller adgangskoden er forkert. Prøv igen!");
-            return "login";
+        Integer employeeId = employeeService.validateLogin(username, password);
+
+        if (employeeId != null && employeeId > 0) {
+            session.setAttribute("employeeId", employeeId);
+
+            return "redirect:/project/list/" + employeeId;
         }
+
+        model.addAttribute("error", "Brugernavn eller adgangskoden er forkert. Prøv igen!");
+
+        return "login";
     }
 
     @PostMapping("/logout")
