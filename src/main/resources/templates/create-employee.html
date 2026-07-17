@@ -39,11 +39,15 @@
         </option>
     </select>
 
-    <button type="submit">Create employee</button>
+    <button type="submit" class="create-employee-submit">
+        Create employee
+    </button>
 </form>
 
 <p th:if="${error}" th:text="${error}" class="error-message"></p>
 
-<a th:href="@{/}">Return to homepage</a>
+<a th:href="@{/}" class="return-home-button">
+    Return to homepage
+</a>
 </body>
 </html>

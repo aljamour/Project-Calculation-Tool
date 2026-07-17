@@ -22,43 +22,109 @@ public class ProjectController {
         this.employeeService = employeeService;
     }
 
+    private Integer getLoggedInEmployeeId(HttpSession session) {
+        return (Integer) session.getAttribute("employeeId");
+    }
+
     @GetMapping("/employees/{employeeId}/{projectId}")
     public String showProjectMembers(@PathVariable int employeeId,
                                      @PathVariable long projectId,
+                                     HttpSession session,
                                      Model model) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        if (!loggedInEmployeeId.equals(employeeId)) {
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (currentEmployee == null ||
+                currentEmployee.getRole() != EmployeeRole.PROJECT_MANAGER) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
         Project project = projectService.getProjectById(projectId);
+
         List<Employee> projectMembers = projectService.getProjectMembers(projectId);
+
         List<Employee> availableEmployees = projectService.getAvailableEmployeesToAdd(projectId);
 
         model.addAttribute("project", project);
         model.addAttribute("projectMembers", projectMembers);
         model.addAttribute("availableEmployees", availableEmployees);
-        model.addAttribute("currentEmployeeId", employeeId);
+        model.addAttribute("currentEmployeeId", loggedInEmployeeId);
         model.addAttribute("currentProjectId", projectId);
-
-        Employee employee = employeeService.getEmployeeById(employeeId);
-        if (employee != null) {
-            model.addAttribute("username", employee.getUsername());
-            model.addAttribute("employeeRole", employee.getRole());
-        }
+        model.addAttribute("username", currentEmployee.getUsername());
+        model.addAttribute("employeeRole", currentEmployee.getRole());
 
         return "view-project-members";
     }
 
     @PostMapping("/employees/{employeeId}/{projectId}/add")
-    public String addEmployeeToProject(@PathVariable int employeeId,
-                                       @PathVariable long projectId,
-                                       @RequestParam("selectedEmployeeId") int selectedEmployeeId) {
+    public String addEmployeeToProject(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            @RequestParam("selectedEmployeeId") int selectedEmployeeId,
+            HttpSession session) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId) ||
+                currentEmployee == null ||
+                currentEmployee.getRole() != EmployeeRole.PROJECT_MANAGER) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
         projectService.addEmployeeToProject(selectedEmployeeId, projectId);
-        return "redirect:/project/employees/" + employeeId + "/" + projectId;
+
+        return "redirect:/project/employees/"
+                + loggedInEmployeeId
+                + "/"
+                + projectId;
     }
 
     @PostMapping("/employees/{employeeId}/{projectId}/remove")
-    public String removeEmployeeFromProject(@PathVariable int employeeId,
-                                            @PathVariable long projectId,
-                                            @RequestParam("employeeIdToRemove") int employeeIdToRemove) {
+    public String removeEmployeeFromProject(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            @RequestParam("employeeIdToRemove") int employeeIdToRemove,
+            HttpSession session) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId) ||
+                currentEmployee == null ||
+                currentEmployee.getRole() != EmployeeRole.PROJECT_MANAGER) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
         projectService.removeEmployeeFromProject(employeeIdToRemove, projectId);
-        return "redirect:/project/employees/" + employeeId + "/" + projectId;
+
+        return "redirect:/project/employees/"
+                + loggedInEmployeeId
+                + "/"
+                + projectId;
     }
 
 
