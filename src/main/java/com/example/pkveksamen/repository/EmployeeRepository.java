@@ -77,18 +77,25 @@ public class EmployeeRepository {
         }
     }
 
-    public Integer validateLogin(String username, String password) {
-        try {
-            String sql = "SELECT employee_id FROM employee WHERE username = ? AND password = ?";
+    public Employee findEmployeeByUsername(String username) {
+        String sql = """
+            SELECT employee_id, username, password, email, role
+            FROM employee
+            WHERE username = ?
+            """;
 
-            List<Integer> result = jdbcTemplate.query(sql, (rs, rowNum) ->
-                    rs.getInt("employee_id"),
-                    username,
-                    password);
-            if (!result.isEmpty())
-                return result.get(0);
-            else
-                return 0;
+        try {
+            return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
+                Employee employee = new Employee();
+                employee.setEmployeeId(rs.getInt("employee_id"));
+                employee.setUsername(rs.getString("username"));
+                employee.setPassword(rs.getString("password"));
+                employee.setEmail(rs.getString("email"));
+                employee.setRole(
+                        EmployeeRole.fromDisplayName(rs.getString("role"))
+                );
+                return employee;
+            }, username);
         } catch (EmptyResultDataAccessException e) {
             return null;
         }

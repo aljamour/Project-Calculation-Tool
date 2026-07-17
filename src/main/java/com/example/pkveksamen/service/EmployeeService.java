@@ -3,37 +3,47 @@ package com.example.pkveksamen.service;
 import com.example.pkveksamen.model.Employee;
 import com.example.pkveksamen.repository.EmployeeRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 public class EmployeeService {
 
-    private EmployeeRepository employeeRepository;
+    private final EmployeeRepository employeeRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public EmployeeService(EmployeeRepository employeeRepository) {
+    public EmployeeService(EmployeeRepository employeeRepository, PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
+    @Transactional
     public boolean createEmployee(String username, String password, String email, String role, String alphaRoleDisplayName) {
         try {
-            employeeRepository.createEmployee(username, password, email, role, alphaRoleDisplayName);
-            System.out.println("Bruger oprettet: " + username + " " + email + " med alphaRole: " + alphaRoleDisplayName);
+            String hashedPassword = passwordEncoder.encode(password);
+
+            employeeRepository.createEmployee(username, hashedPassword, email, role, alphaRoleDisplayName);
+
             return true;
+
         } catch (DataIntegrityViolationException e) {
-            System.out.println("Email allerede i brug: " + email);
-            e.printStackTrace();
-            return false;
-        } catch (Exception e) {
-            System.out.println("Uventet fejl ved oprettelse af bruger: " + e.getMessage());
-            e.printStackTrace();
             return false;
         }
     }
 
     public Integer validateLogin(String username, String password) {
-        return employeeRepository.validateLogin(username, password);
+        Employee employee = employeeRepository.findEmployeeByUsername(username);
+
+        if (employee == null) {
+            return null;
+        }
+
+        boolean passwordMatches = passwordEncoder.matches(password, employee.getPassword());
+
+        return passwordMatches ? employee.getEmployeeId() : null;
     }
 
     public Employee getEmployeeById(int employeeId) {
