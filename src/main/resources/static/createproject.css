@@ -15,71 +15,11 @@ h1 {
     color: #283e51;
 }
 
-/* === FORM WRAPPER === */
-form {
-    max-width: 600px;
-    margin: 40px auto;
-    background: #ffffff;
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+/* === BACK BUTTON === */
+.control-bar {
+    max-width: 650px;
+    margin: 20px auto 0;
 }
 
-/* === FORM GROUP === */
-.form-group {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 18px;
-}
-
-.form-group label {
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: #444;
-}
-
-.form-group input {
-    padding: 10px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    background: #f9fafb;
-    transition: 0.2s ease;
-}
-
-.form-group input:focus {
-    border-color: #4b79a1;
-    background: #ffffff;
-    outline: none;
-}
-
-/* === SUBMIT BUTTON === */
-button[type="submit"] {
-    width: 100%;
-    padding: 12px 18px;
-    border-radius: 8px;
-    background: #4b79a1;
-    color: #ffffff;
-    font-size: 1rem;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    margin-top: 15px;
-    transition: 0.2s ease;
-}
-
-button[type="submit"]:hover {
-    background: #3a5f7a;
-}
-
-/* === RESPONSIVE === */
-@media (max-width: 600px) {
-    form {
-        margin: 20px;
-        padding: 20px;
-    }
-
-    h1 {
-        font-size: 1.6rem;
-    }
-}
+.back-button {
+    display:
