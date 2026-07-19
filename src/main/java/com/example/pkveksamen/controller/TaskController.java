@@ -39,6 +39,53 @@ public class TaskController {
         this.taskRepository = taskRepository;
     }
 
+    private Integer getLoggedInEmployeeId(HttpSession session) {
+        return (Integer) session.getAttribute("employeeId");
+    }
+
+    private boolean hasAccessToProject(int employeeId, long projectId) {
+
+        return projectService.showProjectsByEmployeeId(employeeId)
+                .stream()
+                .anyMatch(project -> project.getProjectID() == projectId);
+    }
+
+    private boolean subProjectBelongsToProject(long projectId, long subProjectId) {
+
+        return projectService.showSubProjectsByProjectId(projectId)
+                .stream()
+                .anyMatch(subProject -> subProject.getSubProjectID() == subProjectId);
+    }
+
+    private List<Employee> getProjectMembersWithAlphaRoles(long projectId) {
+
+        List<Employee> projectMembers = projectService.getProjectMembers(projectId);
+
+        for (Employee member : projectMembers) {
+            Employee refreshedEmployee = employeeService.getEmployeeById(member.getEmployeeId());
+
+            if (refreshedEmployee != null) {
+                member.setAlphaRoles(refreshedEmployee.getAlphaRoles());
+            }
+        }
+
+        return projectMembers;
+    }
+
+    private void prepareCreateTaskModel(Model model, Task task, List<Employee> projectMembers,
+            int employeeId,
+            long projectId,
+            long subProjectId) {
+
+        model.addAttribute("task", task);
+        model.addAttribute("teamMembers", projectMembers);
+        model.addAttribute("currentEmployeeId", employeeId);
+        model.addAttribute("currentProjectId", projectId);
+        model.addAttribute("currentSubProjectId", subProjectId);
+
+        addEmployeeHeader(model, employeeId);
+    }
+
     private void addEmployeeHeader(Model model, int employeeId) {
         Employee employee = employeeService.getEmployeeById(employeeId);
         if (employee != null) {
@@ -56,170 +103,270 @@ public class TaskController {
         return employee != null && employee.getRole() == EmployeeRole.TEAM_MEMBER;
     }
 
-    @GetMapping("/project/task/liste/{projectId}/{subProjectId}/{employeeId}")
-    public String showTaskByEmployeeId(@PathVariable int employeeId,
-                                       @PathVariable long projectId,
-                                       @PathVariable long subProjectId,
-                                       Model model,
-                                       HttpSession session) {
-        Employee currentEmployee = employeeService.getEmployeeById(employeeId);
+    @GetMapping(
+            "/project/task/liste/{projectId}/{subProjectId}/{employeeId}"
+    )
+    public String showTaskByEmployeeId(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            @PathVariable long subProjectId,
+            Model model,
+            HttpSession session) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        if (!loggedInEmployeeId.equals(employeeId)) {
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        if (!hasAccessToProject(loggedInEmployeeId, projectId)) {
+            return "redirect:/project/list/"
+                    + loggedInEmployeeId;
+        }
+
+        if (!subProjectBelongsToProject(projectId, subProjectId)) {
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (currentEmployee == null) {
+            session.invalidate();
+            return "redirect:/login";
+        }
+
+        List<Task> tasksInSubProject = taskService.showTasksBySubProjectId(subProjectId);
+
         List<Task> taskList;
-        
+
         if (isManager(currentEmployee)) {
-            taskList = taskService.showTasksBySubProjectId(subProjectId);
-            
-            // Check for updated notes in shared cache and refresh those tasks
-            // Store which notes we've seen in this session
+            taskList = tasksInSubProject;
+
             @SuppressWarnings("unchecked")
             Set<Long> seenTaskNotes = (Set<Long>) session.getAttribute("seenTaskNotes");
+
             if (seenTaskNotes == null) {
                 seenTaskNotes = new HashSet<>();
+
                 session.setAttribute("seenTaskNotes", seenTaskNotes);
             }
-            
-            // Refresh tasks that have been updated
+
             for (Task task : taskList) {
                 long taskId = task.getTaskID();
+
                 if (updatedTaskNotes.contains(taskId)) {
-                    // Refresh task from database to get latest note – beskyttelse mod null
                     Task updatedTask = taskService.getTaskById(taskId);
+
                     if (updatedTask != null) {
                         task.setTaskNote(updatedTask.getTaskNote());
                     }
+
                     seenTaskNotes.add(taskId);
                 }
             }
-            
-            // Remove seen notes from the shared cache
+
             updatedTaskNotes.removeAll(seenTaskNotes);
+
         } else {
-            taskList = taskService.showTaskByEmployeeId(employeeId);
+            taskList = tasksInSubProject.stream()
+                    .filter(task -> task.getAssignedEmployee() != null
+                                    && task.getAssignedEmployee()
+                                    .getEmployeeId()
+                                    == loggedInEmployeeId
+                    )
+                    .toList();
         }
-        
+
         model.addAttribute("taskList", taskList);
         model.addAttribute("currentProjectId", projectId);
         model.addAttribute("currentSubProjectId", subProjectId);
-        model.addAttribute("currentEmployeeId", employeeId);
+        model.addAttribute("currentEmployeeId", loggedInEmployeeId);
 
-        addEmployeeHeader(model, employeeId);
+        addEmployeeHeader(model, loggedInEmployeeId);
 
         return "task";
     }
 
     @GetMapping("/project/task/createtask/{employeeId}/{projectId}/{subProjectId}")
-    public String showTaskCreateForm(@PathVariable int employeeId,
-                                     @PathVariable long projectId,
-                                     @PathVariable long subProjectId,
-                                     Model model) {
-        Employee currentEmployee = employeeService.getEmployeeById(employeeId);
+    public String showTaskCreateForm(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            @PathVariable long subProjectId,
+            HttpSession session,
+            Model model) {
 
-        if (!isManager(currentEmployee)) {
-            return "redirect:/project/task/liste/" + projectId + "/" + subProjectId + "/" + employeeId;
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
         }
 
-        List<Employee> projectMembers = projectService.getProjectMembers(projectId);
-        for (Employee member : projectMembers) {
-            member.setAlphaRoles(employeeService.getEmployeeById(member.getEmployeeId()).getAlphaRoles());
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId)
+                || !isManager(currentEmployee)
+                || !hasAccessToProject(loggedInEmployeeId, projectId)
+                || !subProjectBelongsToProject(projectId, subProjectId)) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
         }
 
-        model.addAttribute("task", new Task());
-        model.addAttribute("teamMembers", projectMembers);
-        model.addAttribute("currentEmployeeId", employeeId);
-        model.addAttribute("currentProjectId", projectId);
-        model.addAttribute("currentSubProjectId", subProjectId);
-        addEmployeeHeader(model, employeeId);
+        List<Employee> projectMembers = getProjectMembersWithAlphaRoles(projectId);
+
+        prepareCreateTaskModel(
+                model,
+                new Task(),
+                projectMembers,
+                loggedInEmployeeId,
+                projectId,
+                subProjectId
+        );
 
         return "createtask";
     }
 
     @PostMapping("/project/task/createtask/{employeeId}/{projectId}/{subProjectId}")
-    public String createTask(@PathVariable int employeeId,
-                             @PathVariable long projectId,
-                             @PathVariable long subProjectId,
-                             @ModelAttribute Task task,
-                             @RequestParam(value = "assignedToEmployeeId", required = false) Integer assignedToEmployeeId,
-                             Model model) {
-        if (task.getTaskStartDate() != null && task.getTaskDeadline() != null) {
-            long days = ChronoUnit.DAYS.between(task.getTaskStartDate(), task.getTaskDeadline());
-            task.setTaskDuration((int) days + 1);
-        } else {
-            task.setTaskDuration(0);
+    public String createTask(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            @PathVariable long subProjectId,
+            @ModelAttribute Task task,
+            @RequestParam(value = "assignedToEmployeeId", required = false)
+            Integer assignedToEmployeeId,
+            HttpSession session,
+            Model model) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
         }
 
-        if (task.getTaskStartDate() != null) {
-            int year = task.getTaskStartDate().getYear();
-            if (year < 2000 || year > 2100) {
-                model.addAttribute("error", "Start date year must be between 2000 and 2100");
-                return "createtask";
-            }
-        }
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
 
-        if (task.getTaskDeadline() != null) {
-            int year = task.getTaskDeadline().getYear();
-            if (year < 2000 || year > 2100) {
-                model.addAttribute("error", "Deadline year must be between 2000 and 2100");
-                return "createtask";
-            }
-        }
+        if (!loggedInEmployeeId.equals(employeeId)
+                || !isManager(currentEmployee)
+                || !hasAccessToProject(loggedInEmployeeId, projectId)
+                || !subProjectBelongsToProject(projectId, subProjectId)) {
 
-        if (task.getTaskStatus() == null) {
-            task.setTaskStatus(Status.NOT_STARTED);
-        }
-        if (task.getTaskPriority() == null) {
-            task.setTaskPriority(Priority.MEDIUM);
+            return "redirect:/project/list/" + loggedInEmployeeId;
         }
 
         Project project = projectService.getProjectById(projectId);
         SubProject subProject = projectService.getSubProjectBySubProjectID(subProjectId);
 
-// Debug - fjern denne linje efter test
-        System.out.println("DEBUG - SubProjectId: " + subProjectId + ", SubProject: " + subProject);
+        if (project == null || subProject == null) {
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        List<Employee> projectMembers = getProjectMembersWithAlphaRoles(projectId);
+
+        Integer employeeIdToAssign = assignedToEmployeeId != null ? assignedToEmployeeId : loggedInEmployeeId;
+
+        boolean validAssignee = employeeIdToAssign.equals(loggedInEmployeeId)
+                        || projectMembers.stream().anyMatch(member ->
+                                member.getEmployeeId()
+                                        == employeeIdToAssign
+                        );
+
+        if (!validAssignee) {
+            return "redirect:/project/task/liste/"
+                    + projectId
+                    + "/"
+                    + subProjectId
+                    + "/"
+                    + loggedInEmployeeId;
+        }
+
+        if (task.getTaskStartDate() != null
+                && task.getTaskDeadline() != null) {
+
+            long days = ChronoUnit.DAYS.between(task.getTaskStartDate(), task.getTaskDeadline());
+
+            task.setTaskDuration((int) days + 1);
+
+        } else {
+            task.setTaskDuration(0);
+        }
+
+        if (task.getTaskStatus() == null) {
+            task.setTaskStatus(Status.NOT_STARTED);
+        }
+
+        if (task.getTaskPriority() == null) {
+            task.setTaskPriority(Priority.MEDIUM);
+        }
 
         String error = null;
 
-// Valider deadline ikke er før start date FØRST
-        if (task.getTaskStartDate() != null && task.getTaskDeadline() != null &&
-                task.getTaskDeadline().isBefore(task.getTaskStartDate())) {
+        if (task.getTaskStartDate() != null) {
+            int year = task.getTaskStartDate().getYear();
+
+            if (year < 2000 || year > 2100) {
+                error = "Start date year must be between 2000 and 2100";
+            }
+        }
+
+        if (error == null
+                && task.getTaskDeadline() != null) {
+
+            int year = task.getTaskDeadline().getYear();
+
+            if (year < 2000 || year > 2100) {
+                error = "Deadline year must be between 2000 and 2100";
+            }
+        }
+
+        if (error == null
+                && task.getTaskStartDate() != null
+                && task.getTaskDeadline() != null
+                && task.getTaskDeadline().isBefore(
+                task.getTaskStartDate()
+        )) {
+
             error = "Task deadline cannot be before start date";
         }
-// Hvis subProjectId er sat (større end 0) OG vi har et subProject object
-        else if (subProjectId > 0 && subProject != null) {
-            // Valider kun mod subproject
-            if (task.getTaskStartDate() != null && subProject.getSubProjectStartDate() != null &&
-                    task.getTaskStartDate().isBefore(subProject.getSubProjectStartDate())) {
-                error = "Task start date must be within subproject period (set in the subproject)";
-            } else if (task.getTaskDeadline() != null && subProject.getSubProjectDeadline() != null &&
-                    task.getTaskDeadline().isAfter(subProject.getSubProjectDeadline())) {
-                error = "Task deadline must be within subproject period (set in the subproject)";
-            }
-        }
-// Ellers valider mod project (kun hvis IKKE i subproject)
-        else if (subProjectId <= 0 || subProject == null) {
-            if (project != null && task.getTaskStartDate() != null && project.getProjectStartDate() != null &&
-                    task.getTaskStartDate().isBefore(project.getProjectStartDate())) {
-                error = "Task start date must be within project period";
-            } else if (project != null && task.getTaskDeadline() != null && project.getProjectDeadline() != null &&
-                    task.getTaskDeadline().isAfter(project.getProjectDeadline())) {
-                error = "Task deadline must be within project period";
-            }
+
+        if (error == null
+                && task.getTaskStartDate() != null
+                && subProject.getSubProjectStartDate()
+                != null
+                && task.getTaskStartDate().isBefore(
+                subProject.getSubProjectStartDate()
+        )) {
+
+            error = "Task start date must be within subproject period";
         }
 
-// Hvis der er en fejl, forbered error view
+        if (error == null
+                && task.getTaskDeadline() != null
+                && subProject.getSubProjectDeadline()
+                != null
+                && task.getTaskDeadline().isAfter(
+                subProject.getSubProjectDeadline()
+        )) {
+
+            error = "Task deadline must be within subproject period";
+        }
+
         if (error != null) {
             model.addAttribute("error", error);
-            model.addAttribute("task", task);
-            List<Employee> projectMembers = projectService.getProjectMembers(projectId);
-            for (Employee member : projectMembers) {
-                member.setAlphaRoles(employeeService.getEmployeeById(member.getEmployeeId()).getAlphaRoles());
-            }
-            model.addAttribute("teamMembers", projectMembers);
-            model.addAttribute("currentEmployeeId", employeeId);
-            model.addAttribute("currentProjectId", projectId);
-            model.addAttribute("currentSubProjectId", subProjectId);
+
+            prepareCreateTaskModel(
+                    model,
+                    task,
+                    projectMembers,
+                    loggedInEmployeeId,
+                    projectId,
+                    subProjectId
+            );
+
             return "createtask";
         }
-
-        Integer employeeIdToAssign = assignedToEmployeeId != null ? assignedToEmployeeId : employeeId;
 
         taskService.createTask(
                 employeeIdToAssign,
@@ -234,7 +381,12 @@ public class TaskController {
                 task.getTaskNote()
         );
 
-        return "redirect:/project/task/liste/" + projectId + "/" + subProjectId + "/" + employeeId;
+        return "redirect:/project/task/liste/"
+                + projectId
+                + "/"
+                + subProjectId
+                + "/"
+                + loggedInEmployeeId;
     }
 
 
@@ -840,7 +992,4 @@ public class TaskController {
 
         return "redirect:/project/subtask/liste/" + projectId + "/" + subProjectId + "/" + taskId + "/" + employeeId;
     }
-
 }
-
-
