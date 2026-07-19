@@ -26,6 +26,24 @@ public class ProjectController {
         return (Integer) session.getAttribute("employeeId");
     }
 
+    private boolean hasAccessToProject(int employeeId, long projectId) {
+        return projectService.showProjectsByEmployeeId(employeeId)
+                .stream()
+                .anyMatch(project -> project.getProjectID() == projectId);
+    }
+
+    private boolean isProjectManager(Employee employee) {
+        return employee != null
+                && employee.getRole() == EmployeeRole.PROJECT_MANAGER;
+    }
+
+    private boolean subProjectBelongsToProject(long projectId, long subProjectId) {
+
+        return projectService.showSubProjectsByProjectId(projectId)
+                .stream()
+                .anyMatch(subProject -> subProject.getSubProjectID() == subProjectId);
+    }
+
     @GetMapping("/employees/{employeeId}/{projectId}")
     public String showProjectMembers(@PathVariable int employeeId,
                                      @PathVariable long projectId,
@@ -129,16 +147,29 @@ public class ProjectController {
 
 
     @GetMapping("/all-employees")
-    public String showAllEmployees(@RequestParam("employeeId") int employeeId, Model model) {
-        List<Employee> employeeList = employeeService.getAllEmployees();
-        model.addAttribute("employees", employeeList);
-        model.addAttribute("currentEmployeeId", employeeId);
+    public String showAllEmployees(@RequestParam("employeeId") int employeeId, HttpSession session, Model model) {
 
-        Employee employee = employeeService.getEmployeeById(employeeId);
-        if (employee != null) {
-            model.addAttribute("username", employee.getUsername());
-            model.addAttribute("employeeRole", employee.getRole());
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
         }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId) ||
+                currentEmployee == null ||
+                currentEmployee.getRole() != EmployeeRole.PROJECT_MANAGER) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        List<Employee> employeeList = employeeService.getAllEmployees();
+
+        model.addAttribute("employees", employeeList);
+        model.addAttribute("currentEmployeeId", loggedInEmployeeId);
+        model.addAttribute("username", currentEmployee.getUsername());
+        model.addAttribute("employeeRole", currentEmployee.getRole());
 
         return "view-all-employees";
     }
@@ -173,62 +204,99 @@ public class ProjectController {
     }
 
     @GetMapping("/subproject/list/{projectID}")
-    public String showSubprojectByProjectId(@RequestParam("employeeId") int employeeId,
-                                            @PathVariable long projectID,
-                                            Model model) {
+    public String showSubprojectByProjectId(
+            @RequestParam("employeeId") int employeeId,
+            @PathVariable long projectID,
+            HttpSession session,
+            Model model) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        if (!loggedInEmployeeId.equals(employeeId)) {
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        if (!hasAccessToProject(loggedInEmployeeId, projectID)) {
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (currentEmployee == null) {
+            session.invalidate();
+            return "redirect:/login";
+        }
+
         List<SubProject> subProjectList = projectService.showSubProjectsByProjectId(projectID);
+
         model.addAttribute("subProjectList", subProjectList);
         model.addAttribute("currentProjectId", projectID);
-        model.addAttribute("currentEmployeeId", employeeId);
-
-        // Add employee details for the header
-        Employee employee = employeeService.getEmployeeById(employeeId);
-        if (employee != null) {
-            model.addAttribute("username", employee.getUsername());
-            model.addAttribute("employeeRole", employee.getRole());
-        }
+        model.addAttribute("currentEmployeeId", loggedInEmployeeId);
+        model.addAttribute("username", currentEmployee.getUsername());
+        model.addAttribute("employeeRole", currentEmployee.getRole());
 
         return "subproject";
     }
 
 
     @GetMapping("/createproject/{employeeId}")
-    public String showCreateProjectForm(@PathVariable int employeeId, Model model) {
+    public String showCreateProjectForm(
+            @PathVariable int employeeId,
+            HttpSession session,
+            Model model) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId) ||
+                currentEmployee == null ||
+                currentEmployee.getRole() != EmployeeRole.PROJECT_MANAGER) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
         model.addAttribute("project", new Project());
-        model.addAttribute("currentEmployeeId", employeeId);
-//        List<Employee> teamMembers = projectService.getAllTeamMembers();
-//        model.addAttribute("teamMembers", teamMembers);
+        model.addAttribute("currentEmployeeId", loggedInEmployeeId);
+
         return "createproject";
     }
 
     @GetMapping("/createsubproject/{employeeId}/{projectId}")
-    public String showCreateSubProjectForm(@PathVariable int employeeId,
-                                           @PathVariable long projectId,
-                                           @ModelAttribute SubProject subProject,
-                                           Model model) {
+    public String showCreateSubProjectForm(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            HttpSession session,
+            Model model) {
 
-        // Simpel range-check
-        if (subProject.getSubProjectStartDate() != null) {
-            int year = subProject.getSubProjectStartDate().getYear();
-            if (year < 2000 || year > 2100) {
-                // her kunne du fx sætte en fejlbesked i model og vise formen igen
-                model.addAttribute("error", "Start date year must be between 2000 and 2100");
-                // husk at lægge de samme model-attributter på som i GET-metoden
-                return "createsubproject";
-            }
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
         }
 
-        if (subProject.getSubProjectDeadline() != null) {
-            int year = subProject.getSubProjectDeadline().getYear();
-            if (year < 2000 || year > 2100) {
-                model.addAttribute("error", "Deadline year must be between 2000 and 2100");
-                return "createsubproject";
-            }
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId) ||
+                currentEmployee == null ||
+                currentEmployee.getRole() != EmployeeRole.PROJECT_MANAGER ||
+                !hasAccessToProject(loggedInEmployeeId, projectId)) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
         }
 
         model.addAttribute("subProject", new SubProject());
-        model.addAttribute("currentEmployeeId", employeeId);
+        model.addAttribute("currentEmployeeId", loggedInEmployeeId);
         model.addAttribute("currentProjectId", projectId);
+
         return "createsubproject";
     }
 
@@ -271,167 +339,379 @@ public class ProjectController {
     }
 
     @PostMapping("/saveproject/{employeeId}")
-    public String saveProject(@PathVariable int employeeId,
-                              @ModelAttribute Project project) {
+    public String saveProject(
+            @PathVariable int employeeId,
+            @ModelAttribute Project project,
+            HttpSession session) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        Employee currentEmployee =
+                employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId) ||
+                currentEmployee == null ||
+                currentEmployee.getRole() != EmployeeRole.PROJECT_MANAGER) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
         project.recalculateDuration();
-        projectService.saveProject(project, employeeId);
-//        projectService.assignEmployeeToProject(selectedEmployeeId, project.getProjectID());
-        return "redirect:/project/list/" + employeeId;
+
+        projectService.saveProject(
+                project,
+                loggedInEmployeeId
+        );
+
+        return "redirect:/project/list/" + loggedInEmployeeId;
     }
 
 
     @PostMapping("/savesubproject/{employeeId}/{projectId}")
-    public String saveSubProject(@PathVariable int employeeId,
-                                 @PathVariable long projectId,
-                                 @ModelAttribute SubProject subProject,
-                                 Model model) {
-        subProject.recalculateDuration();
+    public String saveSubProject(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            @ModelAttribute SubProject subProject,
+            HttpSession session,
+            Model model) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId)
+                || currentEmployee == null
+                || currentEmployee.getRole() != EmployeeRole.PROJECT_MANAGER
+                || !hasAccessToProject(loggedInEmployeeId, projectId)) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
 
         Project project = projectService.getProjectById(projectId);
-        if (project.getProjectStartDate() != null && subProject.getSubProjectStartDate() != null &&
-                subProject.getSubProjectStartDate().isBefore(project.getProjectStartDate())) {
-            subProject.recalculateDuration();
+
+        if (project == null) {
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        subProject.recalculateDuration();
+
+        if (project.getProjectStartDate() != null
+                && subProject.getSubProjectStartDate() != null
+                && subProject.getSubProjectStartDate()
+                .isBefore(project.getProjectStartDate())) {
+
             model.addAttribute("error", "Subproject start date must be within project period");
+
             model.addAttribute("subProject", subProject);
-            model.addAttribute("currentEmployeeId", employeeId);
+            model.addAttribute("currentEmployeeId", loggedInEmployeeId);
             model.addAttribute("currentProjectId", projectId);
+
             return "createsubproject";
         }
-        if (project.getProjectDeadline() != null && subProject.getSubProjectDeadline() != null &&
-                subProject.getSubProjectDeadline().isAfter(project.getProjectDeadline())) {
-            subProject.recalculateDuration();
+
+        if (project.getProjectDeadline() != null
+                && subProject.getSubProjectDeadline() != null
+                && subProject.getSubProjectDeadline()
+                .isAfter(project.getProjectDeadline())) {
+
             model.addAttribute("error", "Subproject deadline must be within project period");
             model.addAttribute("subProject", subProject);
-            model.addAttribute("currentEmployeeId", employeeId);
+            model.addAttribute("currentEmployeeId", loggedInEmployeeId);
             model.addAttribute("currentProjectId", projectId);
+
             return "createsubproject";
         }
-        if (subProject.getSubProjectStartDate() != null && subProject.getSubProjectDeadline() != null &&
-                subProject.getSubProjectDeadline().isBefore(subProject.getSubProjectStartDate())) {
+
+        if (subProject.getSubProjectStartDate() != null
+                && subProject.getSubProjectDeadline() != null
+                && subProject.getSubProjectDeadline()
+                .isBefore(subProject.getSubProjectStartDate())) {
+
             model.addAttribute("error", "Subproject deadline cannot be before start date");
+
             model.addAttribute("subProject", subProject);
-            model.addAttribute("currentEmployeeId", employeeId);
+            model.addAttribute("currentEmployeeId", loggedInEmployeeId);
             model.addAttribute("currentProjectId", projectId);
+
             return "createsubproject";
         }
 
         projectService.saveSubProject(subProject, projectId);
-        return "redirect:/project/subproject/list/" + projectId + "?employeeId=" + employeeId;
+
+        return "redirect:/project/subproject/list/"
+                + projectId
+                + "?employeeId="
+                + loggedInEmployeeId;
     }
 
     @PostMapping("/delete/{employeeId}/{id}")
-    public String deleteProject(@PathVariable int employeeId, @PathVariable long id) {
+    public String deleteProject(@PathVariable int employeeId, @PathVariable long id, HttpSession session) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId)
+                || !isProjectManager(currentEmployee)
+                || !hasAccessToProject(loggedInEmployeeId, id)) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
         projectService.deleteProject(id);
-        return "redirect:/project/list/" + employeeId;
+
+        return "redirect:/project/list/" + loggedInEmployeeId;
     }
 
-    // TODO DELETE TIL SUBPROJECT - kig på den Aden har lavet den
-    // TODO: KIG OGSÅ PÅ LINJE 123 EFTER PROJECTID
-    @PostMapping("/subproject/delete/{employeeId}/{projectId}/{subProjectId}")
-    public String deleteSubProject(@PathVariable int employeeId,
-                                   @PathVariable long projectId,
-                                   @PathVariable long subProjectId) {
+    @PostMapping(
+            "/subproject/delete/{employeeId}/{projectId}/{subProjectId}"
+    )
+    public String deleteSubProject(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            @PathVariable long subProjectId,
+            HttpSession session) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId)
+                || !isProjectManager(currentEmployee)
+                || !hasAccessToProject(loggedInEmployeeId, projectId)
+                || !subProjectBelongsToProject(projectId, subProjectId) ){
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
         projectService.deleteSubProject(subProjectId);
-        return "redirect:/project/subproject/list/" + projectId + "?employeeId=" + employeeId;
+
+        return "redirect:/project/subproject/list/"
+                + projectId
+                + "?employeeId="
+                + loggedInEmployeeId;
     }
 
 
     @GetMapping("/edit/{employeeId}/{projectId}")
-    public String showEditForm(@PathVariable int employeeId,
-                               @PathVariable long projectId,
-                               Model model) {
-        Project project = projectService.getProjectById(projectId);
-        model.addAttribute("project", project);
-        model.addAttribute("currentEmployeeId", employeeId);
+    public String showEditForm(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            HttpSession session,
+            Model model) {
 
-        Employee employee = employeeService.getEmployeeById(employeeId);
-        if (employee != null) {
-            model.addAttribute("username", employee.getUsername());
-            model.addAttribute("employeeRole", employee.getRole());
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
         }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId)
+                || !isProjectManager(currentEmployee)
+                || !hasAccessToProject(
+                loggedInEmployeeId,
+                projectId
+        )) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        Project project = projectService.getProjectById(projectId);
+
+        if (project == null) {
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        model.addAttribute("project", project);
+        model.addAttribute("currentEmployeeId", loggedInEmployeeId);
+        model.addAttribute("username", currentEmployee.getUsername());
+        model.addAttribute("employeeRole", currentEmployee.getRole());
+
         return "edit-project";
     }
 
-    @GetMapping("/subproject/edit/{employeeId}/{projectId}/{subProjectId}")
-    public String showSubProjectEditForm(@PathVariable int employeeId,
-                                         @PathVariable long projectId,
-                                         @PathVariable long subProjectId, // lowercase i URL
-                                         Model model) {
-        SubProject subProject = projectService.getSubProjectBySubProjectID(subProjectId);
-        model.addAttribute("subProject", subProject);
-        model.addAttribute("currentEmployeeId", employeeId);
-        model.addAttribute("currentProjectId", projectId);
+    @GetMapping(
+            "/subproject/edit/{employeeId}/{projectId}/{subProjectId}"
+    )
+    public String showSubProjectEditForm(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            @PathVariable long subProjectId,
+            HttpSession session,
+            Model model) {
 
-        Employee employee = employeeService.getEmployeeById(employeeId);
-        if (employee != null) {
-            model.addAttribute("username", employee.getUsername());
-            model.addAttribute("employeeRole", employee.getRole());
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
         }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId)
+                || !isProjectManager(currentEmployee)
+                || !hasAccessToProject(loggedInEmployeeId, projectId)
+                || !subProjectBelongsToProject(projectId, subProjectId)) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        SubProject subProject = projectService.getSubProjectBySubProjectID(subProjectId);
+
+        if (subProject == null) {
+            return "redirect:/project/subproject/list/"
+                    + projectId
+                    + "?employeeId="
+                    + loggedInEmployeeId;
+        }
+
+        model.addAttribute("subProject", subProject);
+        model.addAttribute("currentEmployeeId", loggedInEmployeeId);
+        model.addAttribute("currentProjectId", projectId);
+        model.addAttribute("username", currentEmployee.getUsername());
+        model.addAttribute("employeeRole", currentEmployee.getRole());
 
         return "edit-subproject";
     }
 
     @PostMapping("/edit/{employeeId}/{projectId}")
-    public String editProject(@PathVariable int employeeId,
-                              @PathVariable long projectId,
-                              @ModelAttribute Project project) {
+    public String editProject(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            @ModelAttribute Project project,
+            HttpSession session) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId)
+                || !isProjectManager(currentEmployee)
+                || !hasAccessToProject(
+                loggedInEmployeeId,
+                projectId
+        )) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
         project.setProjectID(projectId);
         project.recalculateDuration();
+
         projectService.editProject(project);
-        return "redirect:/project/list/" + employeeId;
+
+        return "redirect:/project/list/" + loggedInEmployeeId;
     }
 
     @PostMapping("/subproject/edit/{employeeId}/{projectId}/{subProjectId}")
-    public String editSubProject(@PathVariable int employeeId,
-                                 @PathVariable long projectId,
-                                 @PathVariable long subProjectId, // lowercase i URL
-                                 @ModelAttribute SubProject subProject,
-                                 Model model) {
-        subProject.setSubProjectID(subProjectId); // Bruger setter-metoden fra model klassen
-        subProject.recalculateDuration();
+    public String editSubProject(
+            @PathVariable int employeeId,
+            @PathVariable long projectId,
+            @PathVariable long subProjectId,
+            @ModelAttribute SubProject subProject,
+            HttpSession session,
+            Model model) {
+
+        Integer loggedInEmployeeId = getLoggedInEmployeeId(session);
+
+        if (loggedInEmployeeId == null) {
+            return "redirect:/login";
+        }
+
+        Employee currentEmployee = employeeService.getEmployeeById(loggedInEmployeeId);
+
+        if (!loggedInEmployeeId.equals(employeeId)
+                || !isProjectManager(currentEmployee)
+                || !hasAccessToProject(loggedInEmployeeId, projectId)
+                || !subProjectBelongsToProject(projectId, subProjectId)) {
+
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
 
         Project project = projectService.getProjectById(projectId);
-        if (project.getProjectStartDate() != null && subProject.getSubProjectStartDate() != null &&
-                subProject.getSubProjectStartDate().isBefore(project.getProjectStartDate())) {
+
+        if (project == null) {
+            return "redirect:/project/list/" + loggedInEmployeeId;
+        }
+
+        subProject.setSubProjectID(subProjectId);
+        subProject.recalculateDuration();
+
+        if (project.getProjectStartDate() != null
+                && subProject.getSubProjectStartDate() != null
+                && subProject.getSubProjectStartDate()
+                .isBefore(project.getProjectStartDate())) {
+
             model.addAttribute("error", "Subproject start date must be within project period");
+
             model.addAttribute("subProject", subProject);
-            model.addAttribute("currentEmployeeId", employeeId);
+            model.addAttribute("currentEmployeeId", loggedInEmployeeId);
             model.addAttribute("currentProjectId", projectId);
-            Employee employee = employeeService.getEmployeeById(employeeId);
-            if (employee != null) {
-                model.addAttribute("username", employee.getUsername());
-                model.addAttribute("employeeRole", employee.getRole());
-            }
+            model.addAttribute("username", currentEmployee.getUsername());
+            model.addAttribute("employeeRole", currentEmployee.getRole());
+
             return "edit-subproject";
         }
-        if (project.getProjectDeadline() != null && subProject.getSubProjectDeadline() != null &&
-                subProject.getSubProjectDeadline().isAfter(project.getProjectDeadline())) {
+
+        if (project.getProjectDeadline() != null
+                && subProject.getSubProjectDeadline() != null
+                && subProject.getSubProjectDeadline()
+                .isAfter(project.getProjectDeadline())) {
+
             model.addAttribute("error", "Subproject deadline must be within project period");
+
             model.addAttribute("subProject", subProject);
-            model.addAttribute("currentEmployeeId", employeeId);
+            model.addAttribute("currentEmployeeId", loggedInEmployeeId);
             model.addAttribute("currentProjectId", projectId);
-            Employee employee = employeeService.getEmployeeById(employeeId);
-            if (employee != null) {
-                model.addAttribute("username", employee.getUsername());
-                model.addAttribute("employeeRole", employee.getRole());
-            }
+            model.addAttribute("username", currentEmployee.getUsername());
+            model.addAttribute("employeeRole", currentEmployee.getRole());
+
             return "edit-subproject";
         }
-        if (subProject.getSubProjectStartDate() != null && subProject.getSubProjectDeadline() != null &&
-                subProject.getSubProjectDeadline().isBefore(subProject.getSubProjectStartDate())) {
+
+        if (subProject.getSubProjectStartDate() != null
+                && subProject.getSubProjectDeadline() != null
+                && subProject.getSubProjectDeadline()
+                .isBefore(subProject.getSubProjectStartDate())) {
+
             model.addAttribute("error", "Subproject deadline cannot be before start date");
+
             model.addAttribute("subProject", subProject);
-            model.addAttribute("currentEmployeeId", employeeId);
+            model.addAttribute("currentEmployeeId", loggedInEmployeeId);
             model.addAttribute("currentProjectId", projectId);
-            Employee employee = employeeService.getEmployeeById(employeeId);
-            if (employee != null) {
-                model.addAttribute("username", employee.getUsername());
-                model.addAttribute("employeeRole", employee.getRole());
-            }
+            model.addAttribute("username", currentEmployee.getUsername());
+            model.addAttribute("employeeRole", currentEmployee.getRole());
+
             return "edit-subproject";
         }
 
         projectService.editSubProject(subProject);
-        return "redirect:/project/subproject/list/" + projectId + "?employeeId=" + employeeId;
+
+        return "redirect:/project/subproject/list/"
+                + projectId
+                + "?employeeId="
+                + loggedInEmployeeId;
     }
 }
