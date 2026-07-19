@@ -1,0 +1,59 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: pct-db
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    volumes:
+      - pct_mysql_data:/var/lib/mysql
+      - ./src/main/resources/sql/schema-mysql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./src/main/resources/sql/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
+
+    command:
+      - --innodb-buffer-pool-size=256M
+      - --max-connections=50
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: project-calculation-tool:latest
+    container_name: pct-app
+    restart: unless-stopped
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      SPRING_PROFILES_ACTIVE: mysql
+      DB_URL: "jdbc:mysql://db:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      DB_USERNAME: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx512m"
+
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  pct_mysql_data:

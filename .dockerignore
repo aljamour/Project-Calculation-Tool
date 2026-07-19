@@ -1,0 +1,9 @@
+target
+.git
+.github
+.idea
+*.iml
+.env
+.deploy.env
+README.md
+CONTRIBUTING.md
